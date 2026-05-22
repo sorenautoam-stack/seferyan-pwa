@@ -263,6 +263,10 @@ textarea.field-input{resize:vertical;min-height:100px;line-height:1.6;}
 @keyframes tout{to{opacity:0;transform:translateX(-50%) translateY(8px)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{animation:spin 1s linear infinite;display:inline-block}
+.zoom-ov{position:absolute;inset:0;background:rgba(0,0,0,0.92);z-index:800;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.zoom-img{max-width:100%;max-height:80dvh;object-fit:contain;border-radius:4px;}
+.zoom-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.zoom-counter{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.6);font-size:12px;font-weight:500;}
 </style>
 </head>
 <body>
@@ -644,6 +648,8 @@ const App = () => {
   const [shareItems, setShareItems] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareProp, setShareProp] = useState(null);
+  const [zoomImg, setZoomImg] = useState(null);
+  const swipeStartX = useRef(null);
   const pressTimer = useRef();
   const toastTimer = useRef();
 
@@ -952,8 +958,22 @@ const App = () => {
       {/* DETAIL */}
       <div className={`screen ${sc('detail')}`} style={{background:'var(--bg)'}}>
         {prop&&<>
-          <div style={{position:'relative',flexShrink:0}}>
-            <img className="gmain" src={gallery[gIdx]||prop.cover_url||'https://placehold.co/900x600/1e4080/fff?text=Фото'} alt=""/>
+          <div style={{position:'relative',flexShrink:0}}
+            onTouchStart={e=>{ swipeStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={e=>{
+              if(swipeStartX.current===null) return;
+              const dx = e.changedTouches[0].clientX - swipeStartX.current;
+              if(Math.abs(dx)>50){
+                if(dx<0) setGIdx(i=>Math.min(i+1,gallery.length-1));
+                else setGIdx(i=>Math.max(i-1,0));
+              }
+              swipeStartX.current=null;
+            }}
+          >
+            <img className="gmain" src={gallery[gIdx]||prop.cover_url||'https://placehold.co/900x600/1e4080/fff?text=Фото'} alt=""
+              onClick={()=>setZoomImg(gallery[gIdx]||prop.cover_url)}
+              style={{cursor:'zoom-in'}}
+            />
             <div className="dov">
               <div className="ibtn" onClick={()=>go(nav)}><Ico n="back" s={17}/></div>
               {isAdmin&&<div className={`ibtn ${added.has(prop.id)?'active':''}`} onClick={e=>toggleAdd(prop,e)}><Ico n="layers" s={16} c={added.has(prop.id)?'#fff':'var(--text)'}/></div>}
@@ -991,6 +1011,12 @@ const App = () => {
                 <button className="cta cta-out" style={{marginBottom:10}} onClick={()=>{setEditProp(prop);setShowEditForm(true);}}>✏️ Редактировать</button>
                 <button className="cta cta-red" style={{marginBottom:10}} onClick={async()=>{if(confirm('Архивировать объект?')){await db.from('properties').update({archived_at:new Date().toISOString()}).eq('id',prop.id);showToast('Архивировано');go('catalog','catalog');loadProperties();}}}>Архивировать объект</button>
               </>}
+              {prop.video_url&&(
+                <a className="cta cta-out" href={prop.video_url} target="_blank" rel="noreferrer"
+                  style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,marginBottom:10,textDecoration:'none'}}>
+                  <Ico n="tg" s={17} c="var(--blue)"/> Смотреть в Telegram
+                </a>
+              )}
               <button className="cta cta-out" onClick={()=>go('contacts','contacts')}>Связаться с Артёмом</button>
               <div style={{height:32}}/>
             </div>
@@ -1148,6 +1174,26 @@ const App = () => {
 
       {/* ADD FORM */}
       <AddForm visible={showForm} onClose={()=>setShowForm(false)} onSaved={loadProperties} showToast={showToast}/>
+
+      {/* ZOOM OVERLAY */}
+      {zoomImg&&(
+        <div className="zoom-ov"
+          onClick={()=>setZoomImg(null)}
+          onTouchStart={e=>{ swipeStartX.current=e.touches[0].clientX; }}
+          onTouchEnd={e=>{
+            const dx=e.changedTouches[0].clientX-swipeStartX.current;
+            if(Math.abs(dx)>50){
+              if(dx<0) setGIdx(i=>{ const n=Math.min(i+1,gallery.length-1); setZoomImg(gallery[n]); return n; });
+              else setGIdx(i=>{ const n=Math.max(i-1,0); setZoomImg(gallery[n]); return n; });
+              swipeStartX.current=null;
+            }
+          }}
+        >
+          <div className="zoom-close" onClick={e=>{e.stopPropagation();setZoomImg(null);}}><Ico n="close" s={16} c="#fff"/></div>
+          <img className="zoom-img" src={zoomImg} alt="" onClick={e=>e.stopPropagation()}/>
+          {gallery.length>1&&<div className="zoom-counter">{gIdx+1} / {gallery.length}</div>}
+        </div>
+      )}
 
       {toast&&<div className="toast">{toast}</div>}
     </div>
