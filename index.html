@@ -112,6 +112,7 @@ body{background:var(--bg2);color:var(--text);font-family:'Inter',sans-serif;font
 .gthumb-row::-webkit-scrollbar{display:none}
 .gthumb{width:56px;height:40px;border-radius:7px;object-fit:cover;flex-shrink:0;cursor:pointer;transition:all .2s;border:2px solid transparent;opacity:.48;}
 .gthumb.on{border-color:var(--blue);opacity:1}
+.gcounter{position:absolute;bottom:12px;right:14px;background:rgba(0,0,0,0.48);backdrop-filter:blur(8px);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;}
 .dbody{padding:20px;background:var(--bg);}
 .dloc{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px;}
 .dtitle{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;line-height:1.2;margin-bottom:6px;}
@@ -275,7 +276,7 @@ const { createClient } = supabase;
 const SUPABASE_URL = 'https://kvrjfqgaqtungihxjigg.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2cmpmcWdhcXR1bmdpaHhqaWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjQwMTEsImV4cCI6MjA5NDk0MDAxMX0.DLO9IEjUWf8KXa9DXiLAG4LkqteW9wlaBqa5UmOCib0';
 const ADMIN_TELEGRAM_ID = '208037883';
-const ADMIN_PIN = '1234';
+const ADMIN_PIN = '3659';
 
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -283,10 +284,10 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 const AGENT = {
   name: 'Артём Сеферян',
   telegram: 'ArtemRafaelovich',
-  phone: '+79182070717',
+  phone: '+79001234567',
   channel: 'Seferyaninvestment',
-  heroPhoto: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=900&q=80',
-  photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80',
+  heroPhoto: 'https://i.ibb.co/QjJYrnxD/grok-image-1771915826670-1.jpg',
+  photo: 'https://i.ibb.co/1Y2FV6PK/IMG-20260209-210145-986.jpg',
   about: [
     'Более 10 лет я помогаю клиентам находить лучшие дома в Сочи — там, где горы встречаются с морем.',
     'Каждая сделка для меня — это поиск места, где вы будете чувствовать себя дома. Знаю каждый район, каждую улицу и каждого застройщика.',
@@ -530,6 +531,86 @@ const AddForm = ({visible, onClose, onSaved, showToast}) => {
   );
 };
 
+// ─── EDIT FORM ────────────────────────────────────────────────────────────────
+const EditForm = ({visible, prop, onClose, onSaved, showToast}) => {
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(()=>{
+    if(prop) setForm({
+      title: prop.title||'', description: prop.description||'', location: prop.location||'',
+      price: prop.price?String(prop.price):'', area: prop.area?String(prop.area):'',
+      beds: prop.beds?String(prop.beds):'', baths: prop.baths?String(prop.baths):'',
+      floors: prop.floors?String(prop.floors):'', status: prop.status||'active',
+      video_url: prop.video_url||'', price_negotiable: prop.price_negotiable||false,
+      tags: prop.tags||[],
+    });
+  }, [prop]);
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const toggleTag = t => set('tags', form.tags?.includes(t)?form.tags.filter(x=>x!==t):[...(form.tags||[]),t]);
+
+  const submit = async () => {
+    if(!form.title||!form.location||!form.price||!form.area){showToast('Заполните обязательные поля');return;}
+    setSaving(true);
+    try {
+      const {error} = await db.from('properties').update({
+        title:form.title, description:form.description||null, location:form.location,
+        price:Number(String(form.price).replace(/\s/g,'')), price_negotiable:form.price_negotiable,
+        area:Number(form.area), beds:form.beds?Number(form.beds):null,
+        baths:form.baths?Number(form.baths):null, floors:form.floors?Number(form.floors):null,
+        status:form.status, video_url:form.video_url||null, tags:form.tags,
+      }).eq('id', prop.id);
+      if(error) throw error;
+      showToast('Сохранено ✓');
+      onSaved();
+      onClose();
+    } catch(e){ showToast('Ошибка: '+e.message); }
+    finally{ setSaving(false); }
+  };
+
+  if(!prop) return null;
+  return (
+    <div className={`form-screen ${visible?'':'hidden'}`} style={{zIndex:25}}>
+      <div className="form-hdr">
+        <div className="ibtn" onClick={onClose}><Ico n="close" s={17}/></div>
+        <div className="form-hdr-title">Редактировать</div>
+        {saving&&<span className="spin"><Ico n="loader" s={18} c="var(--blue)"/></span>}
+      </div>
+      <div className="scroll">
+        <div className="form-body">
+          <div><div className="field-label">Название *</div><input className="field-input" value={form.title||''} onChange={e=>set('title',e.target.value)}/></div>
+          <div><div className="field-label">Локация *</div><input className="field-input" value={form.location||''} onChange={e=>set('location',e.target.value)}/></div>
+          <div className="row2">
+            <div><div className="field-label">Цена, ₽ *</div><input className="field-input" value={form.price||''} onChange={e=>set('price',e.target.value)} inputMode="numeric"/></div>
+            <div><div className="field-label">Площадь, м²</div><input className="field-input" value={form.area||''} onChange={e=>set('area',e.target.value)} inputMode="decimal"/></div>
+          </div>
+          <div className="row2">
+            <div><div className="field-label">Спальни</div><input className="field-input" value={form.beds||''} onChange={e=>set('beds',e.target.value)} inputMode="numeric"/></div>
+            <div><div className="field-label">Санузлы</div><input className="field-input" value={form.baths||''} onChange={e=>set('baths',e.target.value)} inputMode="numeric"/></div>
+          </div>
+          <div className="row2">
+            <div><div className="field-label">Этажей</div><input className="field-input" value={form.floors||''} onChange={e=>set('floors',e.target.value)} inputMode="numeric"/></div>
+            <div><div className="field-label">Статус</div>
+              <select className="field-select" value={form.status||'active'} onChange={e=>set('status',e.target.value)}>
+                <option value="active">Продаётся</option><option value="exclusive">Эксклюзив</option>
+                <option value="off_market">Off-Market</option><option value="reserved">Забронировано</option><option value="sold">Продано</option>
+              </select>
+            </div>
+          </div>
+          <div><div className="field-label">Описание</div><textarea className="field-input" value={form.description||''} onChange={e=>set('description',e.target.value)}/></div>
+          <div><div className="field-label">Видео (Telegram)</div><input className="field-input" value={form.video_url||''} onChange={e=>set('video_url',e.target.value)}/></div>
+          <div>
+            <div className="field-label">Теги</div>
+            <div className="tags-wrap">{ALL_TAGS.map(t=><div key={t} className={`tag-toggle ${(form.tags||[]).includes(t)?'on':''}`} onClick={()=>toggleTag(t)}>{t}</div>)}</div>
+          </div>
+          <button className="form-submit" disabled={saving} onClick={submit}>{saving?'Сохраняю…':'Сохранить изменения'}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 const App = () => {
   const [role, setRole] = useState('guest');
@@ -555,6 +636,10 @@ const App = () => {
   const [pin, setPin] = useState('');
   const [pinErr, setPinErr] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [colHistory, setColHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [editProp, setEditProp] = useState(null);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [sharePageToken, setSharePageToken] = useState(null);
   const [shareItems, setShareItems] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
@@ -592,6 +677,17 @@ const App = () => {
   }, [filter, query]);
 
   useEffect(()=>{ loadProperties(); },[loadProperties]);
+
+  const loadHistory = useCallback(async () => {
+    const {data} = await db.from('collections')
+      .select('id,title,client_name,share_token,created_at,expires_at,collection_items(count)')
+      .eq('agent_telegram_id', ADMIN_TELEGRAM_ID)
+      .is('archived_at', null)
+      .order('created_at', {ascending: false});
+    setColHistory(data||[]);
+  }, []);
+
+  useEffect(()=>{ if(isAdmin) loadHistory(); },[isAdmin, loadHistory]);
 
   const showToast = msg => {
     clearTimeout(toastTimer.current);
@@ -635,6 +731,25 @@ const App = () => {
     }
   };
 
+  const [gallery, setGallery] = useState([]);
+
+  const openProp = async (p) => {
+    setProp(p); setGIdx(0); setOpenAcc(null); go('detail');
+    // Подгружаем все фото объекта
+    const {data} = await db.from('property_photos')
+      .select('url,is_cover,sort_order')
+      .eq('property_id', p.id)
+      .order('sort_order');
+    if(data && data.length>0) setGallery(data.map(x=>x.url));
+    else setGallery(p.cover_url ? [p.cover_url] : []);
+  };
+    try {
+      const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
+      if(res.ok) return await res.text();
+    } catch(e){}
+    return url;
+  };
+
   const sendCollection = async () => {
     setSending(true);
     try {
@@ -647,8 +762,10 @@ const App = () => {
       if(error) throw error;
       const items = collection.map((p,i)=>({collection_id:col.id,property_id:p.id,sort_order:i}));
       await db.from('collection_items').insert(items);
-      const url = `${window.location.origin}${window.location.pathname}?share=${col.share_token}`;
-      setShareToken(url);
+      const longUrl = `${window.location.origin}${window.location.pathname}?share=${col.share_token}`;
+      const short = await shortenUrl(longUrl);
+      setShareToken(short);
+      loadHistory();
     } catch(e){ showToast('Ошибка: '+e.message); }
     finally{ setSending(false); }
   };
@@ -806,8 +923,7 @@ const App = () => {
             : properties.length===0
               ? <div className="empty-row">Объектов пока нет</div>
               : properties.map(p=>(
-                  <div key={p.id} className="card" onClick={()=>{setProp(p);setGIdx(0);setOpenAcc(null);go('detail');}}>
-                    <div className="cimg-wrap">
+                  <div key={p.id} className="card" onClick={()=>openProp(p)}>                    <div className="cimg-wrap">
                       <img className="cimg" src={p.cover_url||'https://placehold.co/900x600/1e4080/fff?text=Фото'} alt={p.title} loading="lazy"/>
                       <div className={`cbadge ${statusClass(p.status)}`}>{STATUS_LABELS[p.status]||p.status}</div>
                       {isAdmin&&<div className={`cadd ${added.has(p.id)?'on':''}`} onClick={e=>toggleAdd(p,e)}>{added.has(p.id)?<Ico n="check" s={14} c="#fff"/>:<Ico n="plus" s={14}/>}</div>}
@@ -837,12 +953,20 @@ const App = () => {
       <div className={`screen ${sc('detail')}`} style={{background:'var(--bg)'}}>
         {prop&&<>
           <div style={{position:'relative',flexShrink:0}}>
-            <img className="gmain" src={prop.cover_url||'https://placehold.co/900x600/1e4080/fff?text=Фото'} alt=""/>
+            <img className="gmain" src={gallery[gIdx]||prop.cover_url||'https://placehold.co/900x600/1e4080/fff?text=Фото'} alt=""/>
             <div className="dov">
               <div className="ibtn" onClick={()=>go(nav)}><Ico n="back" s={17}/></div>
               {isAdmin&&<div className={`ibtn ${added.has(prop.id)?'active':''}`} onClick={e=>toggleAdd(prop,e)}><Ico n="layers" s={16} c={added.has(prop.id)?'#fff':'var(--text)'}/></div>}
             </div>
+            {gallery.length>1&&<div className="gcounter">{gIdx+1} / {gallery.length}</div>}
           </div>
+          {gallery.length>1&&(
+            <div className="gthumb-row">
+              {gallery.map((img,i)=>(
+                <img key={i} className={`gthumb ${i===gIdx?'on':''}`} src={img} alt="" onClick={()=>setGIdx(i)}/>
+              ))}
+            </div>
+          )}
           <div className="scroll">
             <div className="dbody">
               <div className="dloc"><Ico n="pin" s={10}/>{prop.location}</div>
@@ -864,6 +988,7 @@ const App = () => {
               <div style={{height:18}}/>
               {isAdmin&&<>
                 <button className={`cta cta-blue ${added.has(prop.id)?'added':''}`} onClick={e=>toggleAdd(prop,e)} style={{marginBottom:10}}>{added.has(prop.id)?'✓ В подборке — убрать':'+ Добавить в подборку'}</button>
+                <button className="cta cta-out" style={{marginBottom:10}} onClick={()=>{setEditProp(prop);setShowEditForm(true);}}>✏️ Редактировать</button>
                 <button className="cta cta-red" style={{marginBottom:10}} onClick={async()=>{if(confirm('Архивировать объект?')){await db.from('properties').update({archived_at:new Date().toISOString()}).eq('id',prop.id);showToast('Архивировано');go('catalog','catalog');loadProperties();}}}>Архивировать объект</button>
               </>}
               <button className="cta cta-out" onClick={()=>go('contacts','contacts')}>Связаться с Артёмом</button>
@@ -888,7 +1013,7 @@ const App = () => {
             </div>
           </div>
           <div className="info-block">
-            {[{ico:'pin',title:'Локация',sub:'Сочи, Краснодарский край'},{ico:'star',title:'Специализация',sub:'Прибрежные районы, Красная Поляна'},{ico:'catalog',title:'Опыт',sub:'Более 10 лет в премиальной недвижимости'},{ico:'eye',title:'Сделок закрыто',sub:'Более 200 сделок на ₽ 4.2 млрд'}].map((r,i)=>(
+            {[{ico:'pin',title:'Локация',sub:'Сочи, Краснодарский край'},{ico:'star',title:'Специализация',sub:'Прибрежные районы, Красная Поляна'},{ico:'catalog',title:'Опыт',sub:'Более 10 лет в премиальной недвижимости'},{ico:'eye',title:'Сделок закрыто',sub:'Более 200 сделок'}].map((r,i)=>(
               <div key={i} className="irow"><div className="iico"><Ico n={r.ico} s={17} c="var(--blue)"/></div><div><div className="ititle">{r.title}</div><div className="isub">{r.sub}</div></div></div>
             ))}
           </div>
@@ -905,7 +1030,13 @@ const App = () => {
       <div className={`overlay ${colOpen?'':'hidden'}`} onClick={()=>setColOpen(false)}/>
       <div className={`col-panel ${colOpen?'open':''}`}>
         <div className="col-handle"/>
-        <div className="col-hdr"><div className="col-hdr-title">Моя подборка</div><div className="col-hdr-count">{collection.length} объектов</div></div>
+        <div className="col-hdr">
+          <div className="col-hdr-title">Моя подборка</div>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <div className="col-hdr-count">{collection.length} объектов</div>
+            <div style={{fontSize:12,color:'var(--blue)',fontWeight:600,cursor:'pointer',padding:'4px 10px',borderRadius:20,background:'var(--bluea)'}} onClick={()=>{setColOpen(false);setShowHistory(true);}}>История</div>
+          </div>
+        </div>
         <div className="col-scroll">
           {collection.length===0
             ? <div className="col-empty"><div className="col-empty-icon">🏡</div><div className="col-empty-title">Подборка пуста</div><div className="col-empty-sub">Добавляйте объекты из каталога</div></div>
@@ -921,6 +1052,52 @@ const App = () => {
         </div>
         {collection.length>0&&<div className="col-footer"><button className="col-cta" onClick={()=>{setColOpen(false);setShareToken('');setModalOpen(true);}}>Персонализировать и отправить</button></div>}
       </div>
+
+      {/* HISTORY SCREEN */}
+      <div className={`form-screen ${showHistory?'':'hidden'}`}>
+        <div className="form-hdr">
+          <div className="ibtn" onClick={()=>setShowHistory(false)}><Ico n="back" s={17}/></div>
+          <div className="form-hdr-title">История подборок</div>
+        </div>
+        <div className="scroll">
+          {colHistory.length===0
+            ? <div className="col-empty" style={{paddingTop:60}}><div className="col-empty-icon">📋</div><div className="col-empty-title">Пока пусто</div><div className="col-empty-sub">Отправленные подборки появятся здесь</div></div>
+            : colHistory.map(c=>{
+                const date = new Date(c.created_at);
+                const dateStr = date.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+                const timeStr = date.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+                const expired = c.expires_at && new Date(c.expires_at)<new Date();
+                const shortUrl = `${window.location.origin}${window.location.pathname}?share=${c.share_token}`;
+                return (
+                  <div key={c.id} style={{margin:'0 16px 10px',background:'var(--bg)',border:'1px solid var(--border2)',borderRadius:14,padding:'14px 16px',boxShadow:'var(--shadow)'}}>
+                    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:6}}>
+                      <div style={{fontFamily:'Playfair Display,serif',fontSize:16,flex:1,marginRight:8}}>{c.title}</div>
+                      <div style={{fontSize:10,padding:'3px 8px',borderRadius:20,background:expired?'rgba(255,59,48,0.08)':'rgba(52,199,89,0.1)',color:expired?'var(--red)':'var(--green)',fontWeight:600,flexShrink:0}}>{expired?'Истекла':'Активна'}</div>
+                    </div>
+                    <div style={{fontSize:12,color:'var(--muted)',marginBottom:10}}>
+                      {c.client_name&&<span style={{marginRight:10}}>👤 {c.client_name}</span>}
+                      <span>📅 {dateStr} в {timeStr}</span>
+                    </div>
+                    <div style={{display:'flex',gap:8}}>
+                      <button style={{flex:1,padding:'9px',borderRadius:10,border:'1px solid var(--border)',background:'var(--bg2)',fontSize:12,fontWeight:600,cursor:'pointer',color:'var(--text)'}}
+                        onClick={()=>{navigator.clipboard?.writeText(shortUrl);showToast('Ссылка скопирована ✓');}}>
+                        Копировать ссылку
+                      </button>
+                      <button style={{padding:'9px 14px',borderRadius:10,border:'1px solid rgba(255,59,48,0.2)',background:'rgba(255,59,48,0.06)',fontSize:12,fontWeight:600,cursor:'pointer',color:'var(--red)'}}
+                        onClick={async()=>{if(confirm('Удалить подборку?')){await db.from('collections').update({archived_at:new Date().toISOString()}).eq('id',c.id);loadHistory();showToast('Удалено');}}}>
+                        Удалить
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+          }
+          <div style={{height:32}}/>
+        </div>
+      </div>
+
+      {/* EDIT FORM */}
+      {editProp&&<EditForm visible={showEditForm} prop={editProp} onClose={()=>{setShowEditForm(false);setEditProp(null);}} onSaved={()=>{loadProperties();go('catalog','catalog');}} showToast={showToast}/>}
 
       {/* SEND MODAL */}
       <div className={`modal-ov ${modalOpen?'':'hidden'}`} onClick={e=>{if(e.target===e.currentTarget)setModalOpen(false);}}>
