@@ -1120,7 +1120,7 @@ const App = () => {
                   <div className="modal-m"><span className="modal-m-dot"/>Без регистрации</div>
                   <div className="modal-m"><span className="modal-m-dot"/>Контакты скрыты</div>
                 </div>
-                <a className="modal-send" href={`https://t.me/share/url?url=${encodeURIComponent(shareToken)}&text=${encodeURIComponent(`Подборка для ${clientName||'вас'} от Артёма Сеферяна`)}`} target="_blank" rel="noreferrer">
+                <a className="modal-send" href={`https://t.me/share/url?url=${encodeURIComponent(shareToken)}&text=${encodeURIComponent('Подборка для ' + (clientName||'вас') + ' от Артёма Сеферяна')}`} target="_blank" rel="noreferrer">
                   <Ico n="tg" s={18} c="#fff"/> Отправить в Telegram
                 </a>
               </>
