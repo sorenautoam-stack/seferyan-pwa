@@ -743,11 +743,11 @@ const App = () => {
     if(data && data.length>0) setGallery(data.map(x=>x.url));
     else setGallery(p.cover_url ? [p.cover_url] : []);
   };
-    try {
-      const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
-      if(res.ok) return await res.text();
-    } catch(e){}
-    return url;
+
+  const shortenUrl = (url) => {
+    return fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url))
+      .then(res => res.ok ? res.text() : url)
+      .catch(() => url);
   };
 
   const sendCollection = async () => {
