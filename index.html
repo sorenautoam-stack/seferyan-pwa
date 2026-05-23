@@ -751,13 +751,8 @@ const App = () => {
   };
 
   const shortenUrl = (url) => {
-    return fetch('https://cleanuri.com/api/v1/shorten', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'url=' + encodeURIComponent(url)
-    })
-      .then(res => res.json())
-      .then(data => data.result_url || url)
+    return fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(url))
+      .then(res => res.ok ? res.text() : url)
       .catch(() => url);
   };
 
@@ -963,36 +958,38 @@ const App = () => {
       {/* DETAIL */}
       <div className={`screen ${sc('detail')}`} style={{background:'var(--bg)'}}>
         {prop&&<>
-          <div style={{position:'relative',flexShrink:0}}
-            onTouchStart={e=>{ swipeStartX.current = e.touches[0].clientX; }}
-            onTouchEnd={e=>{
-              if(swipeStartX.current===null) return;
-              const dx = e.changedTouches[0].clientX - swipeStartX.current;
-              if(Math.abs(dx)>50){
-                if(dx<0) setGIdx(i=>Math.min(i+1,gallery.length-1));
-                else setGIdx(i=>Math.max(i-1,0));
-              }
-              swipeStartX.current=null;
-            }}
-          >
-            <img className="gmain" src={gallery[gIdx]||prop.cover_url||'https://placehold.co/900x600/1e4080/fff?text=Фото'} alt=""
-              onClick={()=>setZoomImg(gallery[gIdx]||prop.cover_url)}
-              style={{cursor:'zoom-in'}}
-            />
-            <div className="dov">
-              <div className="ibtn" onClick={()=>go(nav)}><Ico n="back" s={17}/></div>
-              {isAdmin&&<div className={`ibtn ${added.has(prop.id)?'active':''}`} onClick={e=>toggleAdd(prop,e)}><Ico n="layers" s={16} c={added.has(prop.id)?'#fff':'var(--text)'}/></div>}
-            </div>
-            {gallery.length>1&&<div className="gcounter">{gIdx+1} / {gallery.length}</div>}
+          {/* Кнопки поверх — фиксированные */}
+          <div className="dov" style={{position:'absolute',zIndex:15}}>
+            <div className="ibtn" onClick={()=>go(nav)}><Ico n="back" s={17}/></div>
+            {isAdmin&&<div className={`ibtn ${added.has(prop.id)?'active':''}`} onClick={e=>toggleAdd(prop,e)}><Ico n="layers" s={16} c={added.has(prop.id)?'#fff':'var(--text)'}/></div>}
           </div>
-          {gallery.length>1&&(
-            <div className="gthumb-row">
-              {gallery.map((img,i)=>(
-                <img key={i} className={`gthumb ${i===gIdx?'on':''}`} src={img} alt="" onClick={()=>setGIdx(i)}/>
-              ))}
-            </div>
-          )}
           <div className="scroll">
+            <div
+              onTouchStart={e=>{ swipeStartX.current = e.touches[0].clientX; }}
+              onTouchEnd={e=>{
+                if(swipeStartX.current===null) return;
+                const dx = e.changedTouches[0].clientX - swipeStartX.current;
+                if(Math.abs(dx)>50){
+                  if(dx<0) setGIdx(i=>Math.min(i+1,gallery.length-1));
+                  else setGIdx(i=>Math.max(i-1,0));
+                }
+                swipeStartX.current=null;
+              }}
+              style={{position:'relative',flexShrink:0}}
+            >
+              <img className="gmain" src={gallery[gIdx]||prop.cover_url||'https://placehold.co/900x600/1e4080/fff?text=Фото'} alt=""
+                onClick={()=>setZoomImg(gallery[gIdx]||prop.cover_url)}
+                style={{cursor:'zoom-in'}}
+              />
+              {gallery.length>1&&<div className="gcounter">{gIdx+1} / {gallery.length}</div>}
+            </div>
+            {gallery.length>1&&(
+              <div className="gthumb-row">
+                {gallery.map((img,i)=>(
+                  <img key={i} className={`gthumb ${i===gIdx?'on':''}`} src={img} alt="" onClick={()=>setGIdx(i)}/>
+                ))}
+              </div>
+            )}
             <div className="dbody">
               <div className="dloc"><Ico n="pin" s={10}/>{prop.location}</div>
               <div className="dtitle">{prop.title}</div>
