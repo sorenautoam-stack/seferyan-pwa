@@ -261,6 +261,14 @@ textarea.field-input{resize:vertical;min-height:100px;line-height:1.6;}
 .toast{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:var(--text);border-radius:22px;padding:10px 22px;font-size:13px;color:#fff;z-index:500;animation:tin .3s ease,tout .3s ease 1.8s forwards;white-space:nowrap;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
 @keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 @keyframes tout{to{opacity:0;transform:translateX(-50%) translateY(8px)}}
+.map-block{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:14px 16px;margin-bottom:16px;}
+.map-block-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;}
+.map-block-addr{font-size:14px;color:var(--text);font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.map-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.map-btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;border:none;}
+.map-btn-g{background:#4285F4;color:#fff;}
+.map-btn-y{background:#FC3F1D;color:#fff;}
+.map-btn:active{transform:scale(.97)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{animation:spin 1s linear infinite;display:inline-block}
 .zoom-ov{position:absolute;inset:0;background:rgba(0,0,0,0.92);z-index:800;display:flex;align-items:center;justify-content:center;flex-direction:column;}
@@ -425,6 +433,7 @@ const AddForm = ({visible, onClose, onSaved, showToast}) => {
         floors:form.floors?Number(form.floors):null, year_built:form.year_built?Number(form.year_built):null,
         land_area:form.land_area?Number(form.land_area):null,
         status:form.status, video_url:form.video_url||null, tags:form.tags, sections,
+        address:form.address||null,
       }]).select().single();
       if(error) throw error;
 
@@ -478,6 +487,7 @@ const AddForm = ({visible, onClose, onSaved, showToast}) => {
 
           <div><div className="field-label">Название *</div><input className="field-input" placeholder="Вилла «Морской Бриз»" value={form.title} onChange={e=>set('title',e.target.value)}/></div>
           <div><div className="field-label">Локация *</div><input className="field-input" placeholder="Хоста, Сочи" value={form.location} onChange={e=>set('location',e.target.value)}/></div>
+          <div><div className="field-label">Адрес</div><input className="field-input" placeholder="ул. Петровская, 5В" value={form.address||''} onChange={e=>set('address',e.target.value)}/></div>
 
           <div className="row2">
             <div><div className="field-label">Цена, ₽ *</div><input className="field-input" placeholder="38 500 000" value={form.price} onChange={e=>set('price',e.target.value)} inputMode="numeric"/></div>
@@ -564,6 +574,7 @@ const EditForm = ({visible, prop, onClose, onSaved, showToast}) => {
         area:Number(form.area), beds:form.beds?Number(form.beds):null,
         baths:form.baths?Number(form.baths):null, floors:form.floors?Number(form.floors):null,
         status:form.status, video_url:form.video_url||null, tags:form.tags,
+        address:form.address||null,
       }).eq('id', prop.id);
       if(error) throw error;
       showToast('Сохранено ✓');
@@ -585,6 +596,7 @@ const EditForm = ({visible, prop, onClose, onSaved, showToast}) => {
         <div className="form-body">
           <div><div className="field-label">Название *</div><input className="field-input" value={form.title||''} onChange={e=>set('title',e.target.value)}/></div>
           <div><div className="field-label">Локация *</div><input className="field-input" value={form.location||''} onChange={e=>set('location',e.target.value)}/></div>
+          <div><div className="field-label">Адрес</div><input className="field-input" placeholder="ул. Петровская, 5В" value={form.address||''} onChange={e=>set('address',e.target.value)}/></div>
           <div className="row2">
             <div><div className="field-label">Цена, ₽ *</div><input className="field-input" value={form.price||''} onChange={e=>set('price',e.target.value)} inputMode="numeric"/></div>
             <div><div className="field-label">Площадь, м²</div><input className="field-input" value={form.area||''} onChange={e=>set('area',e.target.value)} inputMode="decimal"/></div>
@@ -750,27 +762,20 @@ const App = () => {
     else setGallery(p.cover_url ? [p.cover_url] : []);
   };
 
-  const shortenUrl = (url) => {
-    return fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(url))
-      .then(res => res.ok ? res.text() : url)
-      .catch(() => url);
-  };
-
   const sendCollection = async () => {
     setSending(true);
     try {
       const {data:col,error} = await db.from('collections').insert([{
         agent_telegram_id: ADMIN_TELEGRAM_ID,
-        title: clientName?`Подборка для ${clientName}`:'Подборка объектов',
+        title: clientName?'Подборка для ' + clientName:'Подборка объектов',
         client_name: clientName||null,
         expires_at: new Date(Date.now()+7*24*60*60*1000).toISOString(),
       }]).select().single();
       if(error) throw error;
       const items = collection.map((p,i)=>({collection_id:col.id,property_id:p.id,sort_order:i}));
       await db.from('collection_items').insert(items);
-      const longUrl = `${window.location.origin}${window.location.pathname}?share=${col.share_token}`;
-      const short = await shortenUrl(longUrl);
-      setShareToken(short);
+      const url = window.location.origin + window.location.pathname + '?share=' + col.share_token;
+      setShareToken(url);
       loadHistory();
     } catch(e){ showToast('Ошибка: '+e.message); }
     finally{ setSending(false); }
@@ -1013,6 +1018,26 @@ const App = () => {
                 <button className="cta cta-out" style={{marginBottom:10}} onClick={()=>{setEditProp(prop);setShowEditForm(true);}}>✏️ Редактировать</button>
                 <button className="cta cta-red" style={{marginBottom:10}} onClick={async()=>{if(confirm('Архивировать объект?')){await db.from('properties').update({archived_at:new Date().toISOString()}).eq('id',prop.id);showToast('Архивировано');go('catalog','catalog');loadProperties();}}}>Архивировать объект</button>
               </>}
+              {prop.address&&(
+                <div className="map-block">
+                  <div className="map-block-label">Адрес</div>
+                  <div className="map-block-addr"><Ico n="pin" s={14} c="var(--blue)"/>{prop.address}</div>
+                  <div className="map-btns">
+                    <a className="map-btn map-btn-g"
+                      href={'https://www.google.com/maps/search/' + encodeURIComponent(prop.address + ', Сочи')}
+                      target="_blank" rel="noreferrer">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                      Google Maps
+                    </a>
+                    <a className="map-btn map-btn-y"
+                      href={'https://yandex.ru/maps/?text=' + encodeURIComponent(prop.address + ', Сочи')}
+                      target="_blank" rel="noreferrer">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                      Яндекс Карты
+                    </a>
+                  </div>
+                </div>
+              )}
               {prop.video_url&&(
                 <a className="cta cta-out" href={prop.video_url} target="_blank" rel="noreferrer"
                   style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,marginBottom:10,textDecoration:'none'}}>
